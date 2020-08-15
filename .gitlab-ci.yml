@@ -1,0 +1,20 @@
+image: docker:latest
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay
+
+stages:
+  - build
+  
+docker-build:
+  stage: build
+  script:
+  - docker login -u _ -p ${HEROKU_TOKEN} registry.heroku.com  
+  - docker build -f Dockerfile --iidfile imageid.txt -t registry.heroku.com/serene-meadow-04303/web .
+  - docker push registry.heroku.com/serene-meadow-04303/web
+  - apk add --no-cache curl
+  - echo "Docker Image ID is $(cat imageid.txt)"
+  - |-
+    curl -X PATCH https://api.heroku.com/apps/serene-meadow-04303/formation --header "Content-Type: application/json" --header "Accept: application/vnd.heroku+json; version=3.docker-releases" --header "Authorization: Bearer ${HEROKU_TOKEN}" --data '{ "updates": [ { "type": "web", "docker_image": "'$(cat imageid.txt)'" } ] }'
